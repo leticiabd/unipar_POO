@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>ProjetoJDBC</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.3</version>
+        </dependency>
+
+    </dependencies>
+
+</project>
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+package br.unipar;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
+public class Main {
+
+    private static final String url = "jdbc:postgresql://localhost:5432/teste1";
+    private static final String user = "postgres";
+    private static final String password = "admim123";
+
+    public static void main(String[] args) throws SQLException {
+        criarTabelaCurso();
+        criarTabelaAluno();
+
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.print("Informe o nome do curso: ");
+        String nomeCurso = scanner.nextLine();
+        inserirCurso(nomeCurso);
+
+        System.out.print("Informe o nome do aluno: ");
+        String nomeAluno = scanner.nextLine();
+        System.out.print("Informe a idade do aluno: ");
+        int idadeAluno = scanner.nextInt();
+        System.out.print("Informe o ID do curso para o aluno: ");
+        int cursoIdAluno = scanner.nextInt();
+        inserirAluno(nomeAluno, idadeAluno, cursoIdAluno);
+
+        List<Aluno> alunos = listarAlunos();
+        alunos.forEach(a -> System.out.println(a.getNome()));
+
+        System.out.print("Informe o ID do aluno para alteração: ");
+        int idAlunoAlterar = scanner.nextInt();
+        System.out.print("Informe o novo nome do aluno: ");
+        String novoNomeAluno = scanner.next();
+        System.out.print("Informe a nova idade do aluno: ");
+        int novaIdadeAluno = scanner.nextInt();
+        System.out.print("Informe o novo ID do curso para o aluno: ");
+        int novoCursoIdAluno = scanner.nextInt();
+        alterarAluno(idAlunoAlterar, novoNomeAluno, novaIdadeAluno, novoCursoIdAluno);
+
+        System.out.print("Informe o ID do aluno para exclusão: ");
+        int idAlunoExcluir = scanner.nextInt();
+        excluirAluno(idAlunoExcluir);
+    }
+
+    public static Connection connection() throws SQLException {
+        return DriverManager.getConnection(url, user, password);
+    }
+
+    public static void criarTabelaCurso() throws SQLException {
+        try (Connection conn = connection(); Statement stmt = conn.createStatement()) {
+            String sql = "CREATE TABLE IF NOT EXISTS Curso (" +
+                    "id SERIAL PRIMARY KEY, " +
+                    "nome VARCHAR(100) NOT NULL)";
+            stmt.executeUpdate(sql);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void criarTabelaAluno() throws SQLException {
+        try (Connection conn = connection(); Statement stmt = conn.createStatement()) {
+            String sql = "CREATE TABLE IF NOT EXISTS Aluno (" +
+                    "id SERIAL PRIMARY KEY, " +
+                    "nome VARCHAR(100) NOT NULL, " +
+                    "idade INT NOT NULL, " +
+                    "curso_id INT, " +
+                    "FOREIGN KEY (curso_id) REFERENCES Curso(id))";
+            stmt.executeUpdate(sql);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void inserirCurso(String nome) throws SQLException {
+        String sql = "INSERT INTO Curso (nome) VALUES (?)";
+        try (Connection conn = connection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, nome);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void inserirAluno(String nome, int idade, int cursoId) throws SQLException {
+        String sql = "INSERT INTO Aluno (nome, idade, curso_id) VALUES (?, ?, ?)";
+        try (Connection conn = connection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, nome);
+            pstmt.setInt(2, idade);
+            pstmt.setInt(3, cursoId);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void alterarAluno(int id, String nome, int idade, int cursoId) throws SQLException {
+        String sql = "UPDATE Aluno SET nome = ?, idade = ?, curso_id = ? WHERE id = ?";
+        try (Connection conn = connection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, nome);
+            pstmt.setInt(2, idade);
+            pstmt.setInt(3, cursoId);
+            pstmt.setInt(4, id);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static List<Aluno> listarAlunos() throws SQLException {
+        List<Aluno> alunos = new ArrayList<>();
+        String sql = "SELECT * FROM Aluno";
+        try (Connection conn = connection(); Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                Aluno aluno = new Aluno();
+                aluno.setId(rs.getInt("id"));
+                aluno.setNome(rs.getString("nome"));
+                aluno.setIdade(rs.getInt("idade"));
+                aluno.setCursoId(rs.getInt("curso_id"));
+                alunos.add(aluno);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return alunos;
+    }
+
+    public static void excluirAluno(int id) throws SQLException {
+        String sql = "DELETE FROM Aluno WHERE id = ?";
+        try (Connection conn = connection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+class Aluno {
+    private int id;
+    private String nome;
+    private int idade;
+    private int cursoId;
+
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
+    public String getNome() { return nome; }
+    public void setNome(String nome) { this.nome = nome; }
+
+    public int getIdade() { return idade; }
+    public void setIdade(int idade) { this.idade = idade; }
+
+    public int getCursoId() { return cursoId; }
+    public void setCursoId(int cursoId) { this.cursoId = cursoId; }
+}
